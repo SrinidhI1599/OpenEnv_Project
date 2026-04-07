@@ -1,0 +1,19 @@
+name: spacecraft-landing-env
+version: 1.0
+
+environment:
+  entry_point: src.env:SpaceCraftEnv
+
+api:
+  reset: /reset
+  step: /step
+  state: /state
+
+tasks:
+  - easy
+  - medium
+  - hard
+
+reward_range: [-100, 100]
+
+max_steps: 200
