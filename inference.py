@@ -4,10 +4,10 @@ from openai import OpenAI
 
 # ---------------- ENV SETUP ---------------- #
 
-LLM_BASE_URL = os.getenv("API_BASE_URL", "")
-MODEL_NAME = os.getenv("MODEL_NAME", "")
-HF_TOKEN = os.getenv("HF_TOKEN", "")
-ENV_BASE_URL = os.getenv("ENV_BASE_URL", "")
+LLM_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-5-nano")
+HF_TOKEN = os.getenv("HF_TOKEN", "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")
+ENV_BASE_URL = os.getenv("ENV_BASE_URL", "http://localhost:5000")
 
 # Debug missing vars (DO NOT crash)
 missing = []
@@ -73,7 +73,7 @@ def safe_get(url):
 
 
 def safe_post(url, payload):
-    res = None  # ✅ FIXED
+    res = None
     try:
         res = requests.post(url, json=payload, timeout=10)
         res.raise_for_status()
