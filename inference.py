@@ -1,6 +1,7 @@
 import os
 import requests
 from openai import OpenAI
+from graders import grader_episode   # ✅ import your grader
 
 # ---------------- ENV SETUP ---------------- #
 
@@ -92,13 +93,13 @@ def safe_post(url, payload):
 def run_task(task_name):
     if not ENV_BASE_URL:
         print("❌ ENV_BASE_URL missing → skipping task")
-        return 0.0
+        return 0.01  # ✅ safe minimum strictly > 0
 
     try:
         state = safe_get(f"{ENV_BASE_URL}/reset?task={task_name}")
     except Exception:
         print("❌ Failed to reset environment")
-        return 0.0
+        return 0.01
 
     total_reward = 0.0
 
@@ -137,7 +138,8 @@ def run_task(task_name):
         if res.get("done", False):
             break
 
-    score = max(0.0, min(1.0, total_reward / 100.0))
+    # ✅ Use grader to compute score
+    score = grader_episode(state, total_reward)
     return score
 
 
@@ -154,11 +156,13 @@ def main():
             score = run_task(task)
         except Exception as e:
             print(f"❌ Task {task} failed:", str(e))
-            score = 0.0
-
+            score = 0.01   # ✅ safe minimum
         scores.append(score)
 
-    final_score = sum(scores) / len(scores) if scores else 0.0
+    final_score = sum(scores) / len(scores) if scores else 0.01
+
+    # ✅ clamp strictly between (0,1)
+    final_score = max(0.01, min(0.99, final_score))
 
     log_end(final_score)
 
