@@ -1,12 +1,8 @@
 import os
 import requests
 from openai import OpenAI
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
-
-# Environment variables
+# Environment variables (from HF Secrets)
 LLM_BASE_URL = os.getenv("API_BASE_URL")
 MODEL_NAME = os.getenv("MODEL_NAME")
 HF_TOKEN = os.getenv("HF_TOKEN")
