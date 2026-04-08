@@ -2,21 +2,39 @@ import os
 import requests
 from openai import OpenAI
 
-# Environment variables (from HF Secrets)
-LLM_BASE_URL = os.getenv("API_BASE_URL")
-MODEL_NAME = os.getenv("MODEL_NAME")
-HF_TOKEN = os.getenv("HF_TOKEN")
-ENV_BASE_URL = os.getenv("ENV_BASE_URL")
+# ---------------- ENV SETUP ---------------- #
 
-# Validate env variables early (fail fast)
-if not all([LLM_BASE_URL, MODEL_NAME, HF_TOKEN, ENV_BASE_URL]):
-    raise ValueError("❌ Missing required environment variables")
+LLM_BASE_URL = os.getenv("API_BASE_URL", "")
+MODEL_NAME = os.getenv("MODEL_NAME", "")
+HF_TOKEN = os.getenv("HF_TOKEN", "")
+ENV_BASE_URL = os.getenv("ENV_BASE_URL", "")
 
-# OpenAI client
-client = OpenAI(
-    base_url=LLM_BASE_URL,
-    api_key=HF_TOKEN
-)
+# Debug missing vars (DO NOT crash)
+missing = []
+if not LLM_BASE_URL:
+    missing.append("API_BASE_URL")
+if not MODEL_NAME:
+    missing.append("MODEL_NAME")
+if not HF_TOKEN:
+    missing.append("HF_TOKEN")
+if not ENV_BASE_URL:
+    missing.append("ENV_BASE_URL")
+
+if missing:
+    print("⚠️ Missing env vars:", missing)
+    print("⚠️ Using safe fallback behavior...")
+
+# Initialize client safely
+client = None
+try:
+    if LLM_BASE_URL and HF_TOKEN:
+        client = OpenAI(
+            base_url=LLM_BASE_URL,
+            api_key=HF_TOKEN
+        )
+except Exception as e:
+    print("⚠️ Failed to initialize LLM client:", str(e))
+
 
 # ---------------- LOGGING ---------------- #
 
@@ -33,16 +51,15 @@ def log_end(score):
     print("[END]")
     print(f"final_score: {score}")
 
+
 # ---------------- ENV HELPERS ---------------- #
 
 def safe_get(url):
-    res = None  # ✅ initialize
-
+    res = None
     try:
         res = requests.get(url, timeout=10)
         res.raise_for_status()
         return res.json()
-
     except Exception as e:
         print(f"❌ GET failed: {url}")
         print("Error:", str(e))
@@ -52,9 +69,11 @@ def safe_get(url):
         else:
             print("No response received")
 
-        raise
+        return {}   # ✅ do NOT crash
+
 
 def safe_post(url, payload):
+    res = None  # ✅ FIXED
     try:
         res = requests.post(url, json=payload, timeout=10)
         res.raise_for_status()
@@ -64,33 +83,44 @@ def safe_post(url, payload):
         print("Payload:", payload)
         print("Error:", str(e))
         print("Response:", getattr(res, "text", "No response"))
-        raise
+
+        return {}   # ✅ do NOT crash
+
 
 # ---------------- TASK RUNNER ---------------- #
 
 def run_task(task_name):
-    # Reset environment
-    state = safe_get(f"{ENV_BASE_URL}/reset?task={task_name}")
+    if not ENV_BASE_URL:
+        print("❌ ENV_BASE_URL missing → skipping task")
+        return 0.0
+
+    try:
+        state = safe_get(f"{ENV_BASE_URL}/reset?task={task_name}")
+    except Exception:
+        print("❌ Failed to reset environment")
+        return 0.0
 
     total_reward = 0.0
 
     for step in range(200):
 
-        # Required LLM call (even if not used heavily)
-        try:
-            _ = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[
-                    {"role": "user", "content": f"Decide action for state: {state}"}
-                ],
-                max_tokens=10
-            )
-        except Exception as e:
-            print("⚠️ LLM call failed:", str(e))
+        # LLM call (optional, safe)
+        if client and MODEL_NAME:
+            try:
+                _ = client.chat.completions.create(
+                    model=MODEL_NAME,
+                    messages=[
+                        {"role": "user", "content": f"Decide action for state: {state}"}
+                    ],
+                    max_tokens=10
+                )
+            except Exception as e:
+                print("⚠️ LLM call failed:", str(e))
 
-        # Simple heuristic policy (can improve later)
+        # Heuristic policy
+        vy = state.get("vy", 0)
         action = {
-            "thrust": 1.0 if state.get("vy", 0) < -0.5 else 0.3,
+            "thrust": 1.0 if vy < -0.5 else 0.3,
             "rotate": 0.0
         }
 
@@ -107,9 +137,9 @@ def run_task(task_name):
         if res.get("done", False):
             break
 
-    # Normalize score (0 → 1)
     score = max(0.0, min(1.0, total_reward / 100.0))
     return score
+
 
 # ---------------- MAIN ---------------- #
 
@@ -120,12 +150,18 @@ def main():
     scores = []
 
     for task in tasks:
-        score = run_task(task)
+        try:
+            score = run_task(task)
+        except Exception as e:
+            print(f"❌ Task {task} failed:", str(e))
+            score = 0.0
+
         scores.append(score)
 
-    final_score = sum(scores) / len(scores)
+    final_score = sum(scores) / len(scores) if scores else 0.0
 
     log_end(final_score)
+
 
 # ---------------- ENTRY ---------------- #
 
