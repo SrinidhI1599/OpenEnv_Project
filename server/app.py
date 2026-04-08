@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
@@ -8,29 +8,22 @@ from src.models import Action
 app = FastAPI()
 env = SpaceCraftEnv()
 
-# ---------------- SERVE FRONTEND ---------------- #
-
-# Mount static folder (HTML, CSS, JS)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Serve UI on root "/"
 @app.get("/")
 def serve_ui():
     return FileResponse("static/index.html")
 
-
-# ---------------- API ENDPOINTS ---------------- #
-
+# ✅ SUPPORT BOTH GET + POST
 @app.get("/reset")
-def reset(task: str = "easy"):
+@app.post("/reset")
+def reset(task: str = Query(default="easy")):
     return env.reset(task).dict()
 
-
 @app.post("/step")
-def step(action: Action):  # ✅ use model instead of dict
+def step(action: Action):
     result = env.step(action)
     return result.dict()
-
 
 @app.get("/state")
 def get_state():
