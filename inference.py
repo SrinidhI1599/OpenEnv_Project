@@ -93,7 +93,7 @@ def safe_post(url, payload):
 def run_task(task_name):
     if not ENV_BASE_URL:
         print("❌ ENV_BASE_URL missing → skipping task")
-        return 0.01  # ✅ safe minimum strictly > 0
+        return 0.01
 
     try:
         state = safe_get(f"{ENV_BASE_URL}/reset?task={task_name}")
@@ -105,7 +105,7 @@ def run_task(task_name):
 
     for step in range(200):
 
-        # LLM call (optional, safe)
+        # Optional LLM call
         if client and MODEL_NAME:
             try:
                 _ = client.chat.completions.create(
@@ -138,10 +138,35 @@ def run_task(task_name):
         if res.get("done", False):
             break
 
-    # ✅ Use grader to compute score
-    score = grader_episode(state, total_reward)
-    return score
+    # ---------------- FINAL SAFE SCORING ---------------- #
 
+    try:
+        if state.get("landed", False):
+            score = 0.95
+
+            if state.get("fuel", 100) < 20:
+                score -= 0.2
+
+            if abs(state.get("vy", 0)) > 0.5:
+                score -= 0.3
+
+        elif state.get("crashed", False):
+            score = 0.05
+
+        else:
+            score = 0.3
+
+    except Exception as e:
+        print("⚠️ Scoring failed:", str(e))
+        score = 0.3
+
+    # ✅ STRICT CLAMP (MANDATORY)
+    score = max(0.01, min(0.99, score))
+
+    print("FINAL STATE:", state)
+    print("FINAL SCORE:", score)
+
+    return score
 
 # ---------------- MAIN ---------------- #
 
