@@ -1,7 +1,7 @@
 import os
 import requests
 from openai import OpenAI
-from graders import grader_episode   # ✅ import your grader
+from src.graders import grader_episode   # ✅ import your grader
 
 # ---------------- ENV SETUP ---------------- #
 
