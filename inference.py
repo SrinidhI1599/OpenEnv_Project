@@ -2,6 +2,7 @@ import os
 import requests
 from openai import OpenAI
 from graders import grader_episode   # ✅ import grader
+from tasks import TASKS
 
 # ---------------- ENV SETUP ---------------- #
 
@@ -140,6 +141,13 @@ def run_task(task_name):
 
     # ✅ Use grader to compute score
     score = grader_episode(state, total_reward)
+
+    # ✅ HARD CLAMP (critical for HF validation)
+    if not isinstance(score, (int, float)):
+        score = 0.01
+
+    score = max(0.01, min(0.99, float(score)))
+
     return score
 
 
@@ -148,15 +156,14 @@ def run_task(task_name):
 def main():
     log_start()
 
-    tasks = ["easy", "medium", "hard"]
     scores = []
 
-    for task in tasks:
+    for task_name, task_config in TASKS.items():
         try:
-            score = run_task(task)
+            score = run_task(task_name)
         except Exception as e:
-            print(f"❌ Task {task} failed:", str(e))
-            score = 0.01   # ✅ safe minimum
+            print(f"❌ Task {task_name} failed:", str(e))
+            score = 0.01
         scores.append(score)
 
     final_score = sum(scores) / len(scores) if scores else 0.01
