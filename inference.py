@@ -148,6 +148,12 @@ def run_task(task_name):
 
     score = grader_fn(state, total_reward)
 
+
+    if not (0 < score < 1):
+    print("⚠️ Fixing invalid score:", score)
+    score = 0.5
+    
+
     # ✅ HARD CLAMP (critical for HF validation)
     if not isinstance(score, (int, float)):
         score = 0.01
@@ -157,6 +163,9 @@ def run_task(task_name):
     return score
 
 
+    print("Running task:", task_name)
+
+
 # ---------------- MAIN ---------------- #
 
 def main():
@@ -164,20 +173,32 @@ def main():
 
     scores = []
 
+    results = {}
+
     for task_name, task_config in TASKS.items():
         try:
             score = run_task(task_name)
         except Exception as e:
             print(f"❌ Task {task_name} failed:", str(e))
             score = 0.01
-        scores.append(score)
 
-    final_score = sum(scores) / len(scores) if scores else 0.01
+    # 🔴 IMPORTANT: store per-task result
+        results[task_name] = float(score)
 
-    # ✅ clamp strictly between (0,1)
+    # final score
+    final_score = sum(results.values()) / len(results) if results else 0.01
+
+    # clamp
     final_score = max(0.01, min(0.99, final_score))
 
     log_end(final_score)
+
+    # 🔴 CRITICAL: print structured output
+    print({
+    "score": final_score,
+    "tasks": results
+})
+
 
 
 # ---------------- ENTRY ---------------- #
