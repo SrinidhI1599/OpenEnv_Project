@@ -150,8 +150,8 @@ def run_task(task_name):
 
 
     if not (0 < score < 1):
-    print("⚠️ Fixing invalid score:", score)
-    score = 0.5
+        print("⚠️ Fixing invalid score:", score)
+        score = 0.5
     
 
     # ✅ HARD CLAMP (critical for HF validation)
