@@ -140,7 +140,13 @@ def run_task(task_name):
             break
 
     # ✅ Use grader to compute score
-    score = grader_episode(state, total_reward)
+    grader_fn = TASKS[task_name].get("grader")
+
+    if grader_fn is None:
+        print(f"❌ No grader for task {task_name}")
+        return 0.01
+
+    score = grader_fn(state, total_reward)
 
     # ✅ HARD CLAMP (critical for HF validation)
     if not isinstance(score, (int, float)):
